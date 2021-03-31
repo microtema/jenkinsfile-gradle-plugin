@@ -1,4 +1,4 @@
-package de.microtema.plugin
+package de.microtema.plugins.jenkinsfile
 
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
