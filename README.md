@@ -38,7 +38,7 @@ apply {
 }
 
 jenkinsfile {
-    appName = project.name
+    serviceName = project.name
 }
 ```
 

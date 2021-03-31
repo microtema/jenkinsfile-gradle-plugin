@@ -1,6 +1,8 @@
 package de.microtema.plugins.jenkinsfile
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputFile
@@ -9,33 +11,152 @@ import org.gradle.api.tasks.TaskAction
 class JenkinsfileTask extends DefaultTask {
 
     @Input
-    final Property<String> appName = project.objects.property(String)
+    final Property<String> serviceName = project.objects.property(String)
+
+    @Input
+    final ListProperty<String> upstreamProjects = project.objects.listProperty(String)
+
+    @Input
+    final ListProperty<String> prodStages = project.objects.listProperty(String)
+
+    @Input
+    final MapProperty<String, String> stages = project.objects.mapProperty(String, String)
+
+    @Input
+    final MapProperty<String, String> environments = project.objects.mapProperty(String, String)
 
     @OutputFile
-    File resultFile = new File("./Jenkinsfile")
+    def resultFile = new File('./Jenkinsfile')
 
     @TaskAction
     def generate() {
 
-        resultFile.write """pipeline {
+        def service = new JenkinsfileGeneratorService()
 
-    agent any
-    
-    environment {
-        APP_NAME = '${appName.get()}'
+        // Skip maven sub modules
+        if (!service.isGitRepo(project) && false) {
+
+            logger.info "Skip maven module: ${serviceName} since it is not a git repo!"
+
+            return
+        }
+
+        def rootPath = service.getRootPath(project)
+
+        logger.info "Generate Jenkinsfile for ${serviceName} -> ${rootPath}"
+
+        def pipeline = getJenkinsStage 'pipeline'
+        def agent = getJenkinsStage 'agent'
+        def environment = getJenkinsStage 'environment'
+        def options = getJenkinsStage 'options'
+        def triggers = getJenkinsStage 'triggers'
+        def stages = buildStages()
+
+        pipeline = pipeline.replace("@AGENT@", agent)
+                .replace("@ENVIRONMENT@", environment)
+                .replace("@OPTIONS@", options)
+                .replace("@TRIGGERS@", triggers)
+                .replace("@STAGES@", stages)
+
+        resultFile.write pipeline
+
+        logger.info "File written to $resultFile"
     }
 
-    stages {
+    def getJenkinsStage(String templateName) {
 
-        stage ('Unit Tests') {
-            steps {
-                sh './gradlew test'
-            }
+        def inputStream = getClass().getResourceAsStream("/${templateName}.Jenkinsfile")
+
+        def template = inputStream.getText()
+
+        switch (templateName) {
+            case 'environment': return applyEnvironmentStage(template)
+            case 'triggers': return applyTriggersStage(template)
+            default: return template
         }
     }
-}
-"""
 
-        println "File written to $resultFile"
+    def buildStages() {
+        ""
+    }
+
+    def applyEnvironmentStage(String template) {
+
+        def environmentsAsString = new StringBuilder()
+
+        def environments = new HashMap<>(this.environments.get())
+        def serviceName = this.serviceName.get()
+
+        environments.putIfAbsent("SERVICE_NAME", serviceName)
+
+        for (Map.Entry<String, String> entry : environments.entrySet()) {
+
+            String value = entry.getValue()
+
+            if (!(value.startsWith("sh") || value.startsWith("'") || value.startsWith("\""))) {
+                value = maskEnvironmentVariable(value)
+            }
+
+            String line = entry.getKey() + " = " + value
+            environmentsAsString.append(paddLine(line, 8))
+        }
+
+        return template.replace("@ENVIRONMENTS@", environmentsAsString.toString())
+    }
+
+    def applyTriggersStage(String template) {
+
+        def upstreamProjectsParam = new StringBuilder()
+        def upstreamProjects = this.upstreamProjects.get()
+
+        for (int index = 0; index < upstreamProjects.size(); index++) {
+
+            String upstreamProject = upstreamProjects.get(index)
+
+            upstreamProjectsParam.append(upstreamProject)
+            upstreamProjectsParam.append('''/${env.BRANCH_NAME.replaceAll('/', '%2F')}''')
+
+            if (index < upstreamProjects.size() - 1) {
+                upstreamProjectsParam.append(",")
+            }
+        }
+
+        return template.replace("@UPSTREAM_PROJECTS@", upstreamProjectsParam.toString())
+    }
+
+    def maskEnvironmentVariable(String value) {
+
+        return "'" + (value != null ? value : "") + "'"
+    }
+
+    def paddLine(String template, int padding) {
+
+        BufferedReader reader = new BufferedReader(new StringReader(template))
+        StringBuilder builder = new StringBuilder()
+
+        List<String> spaces = new ArrayList<>()
+        while (padding-- > 0) {
+            spaces.add(" ")
+        }
+
+        String paddingString = String.join("", spaces)
+
+        try {
+            String line
+            while ((line = reader.readLine()) != null) {
+                builder.append(paddingString).append(line).append("\n")
+            }
+
+        } catch (IOException e) {
+            throw new IllegalStateException(e)
+        } finally {
+            try {
+                reader.close()
+            } catch (IOException e) {
+                // ignore this exception
+            }
+        }
+
+        return builder.toString()
     }
 }

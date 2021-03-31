@@ -11,7 +11,9 @@ class JenkinsfilePlugin implements Plugin<Project> {
         project.extensions.create('jenkinsfile', JenkinsfileExtension)
 
         project.tasks.create('jenkinsfile', JenkinsfileTask) {
-            appName = project.jenkinsfile.appName
+            serviceName = project.jenkinsfile.serviceName
+            environments = project.jenkinsfile.environments
+            upstreamProjects = project.jenkinsfile.upstreamProjects
         }
     }
 }

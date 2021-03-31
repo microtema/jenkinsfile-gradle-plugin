@@ -27,10 +27,12 @@ class JenkinsfilePluginTest extends Specification {
     def "can successfully generate Jenkinsfile"() {
 
         given:
-        String appName = "service-api"
+        String serviceName = "service-api"
         buildFile << """
             jenkinsfile {
-                appName = '${appName}'
+                serviceName = '${serviceName}'
+                environments = [:]
+                upstreamProjects = ['e2e']
             }
         """
 
