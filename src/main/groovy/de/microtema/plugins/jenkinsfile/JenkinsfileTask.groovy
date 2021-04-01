@@ -77,13 +77,14 @@ class JenkinsfileTask extends DefaultTask {
             case 'environment': return applyEnvironmentStage(template)
             case 'triggers': return applyTriggersStage(template)
             case 'tests': return applyTestsStage(template)
+            case 'sonar': return applySonarStage(template)
             default: return template
         }
     }
 
     def buildStages() {
 
-        def stageNames = Arrays.asList("compile", "versioning", "tests", "build")
+        def stageNames = Arrays.asList("compile", "versioning", "tests", "build", "sonar")
 
         def template = new StringBuilder()
 
@@ -159,6 +160,15 @@ class JenkinsfileTask extends DefaultTask {
         return template
                 .replace("@UNIT_TESTS@", unitTest.toString())
                 .replace("@INTEGRATION_TESTS@", integrationTest.toString())
+    }
+
+    def applySonarStage(String template) {
+
+        if (!service.hasSonarTask()) {
+            return null
+        }
+
+        template
     }
 
     def maskEnvironmentVariable(String value) {

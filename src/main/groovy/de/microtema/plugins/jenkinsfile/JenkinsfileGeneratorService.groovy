@@ -43,32 +43,13 @@ class JenkinsfileGeneratorService {
         new File(getRootPath(), "${project.name}/src/integrationTest").exists()
     }
 
-    def hasSourceCode() {
-
-        if (new File(getRootPath(), 'src/main/test').exists()) {
-            return true
-        }
-
-        project.getSubprojects().find { it.getBuildDir().name.startsWith('../') }
-    }
-
     def isGitRepo() {
 
         new File(getRootPath(), '.git').exists()
     }
 
-    List<String> getSonarExcludes() {
+    def hasSonarTask() {
 
-        List<String> excludes = new ArrayList<>(project.getSubprojects()).collect { it.getName() }
-
-        excludes.removeIf { it.startsWith('../') }
-        excludes.removeIf { new File(new File(getRootPath(), it), 'src/main/java').exists() }
-
-        excludes
-    }
-
-    def hasSonarProperties() {
-
-        project.task('sonaqube')
+        project.tasks.findByName('sonarqube')
     }
 }
