@@ -17,7 +17,11 @@ class JenkinsfileGeneratorService {
 
     def existsDockerfile() {
 
-        new File(getRootPath(), '/Dockerfile').exists()
+        if (new File(getRootPath(), 'Dockerfile').exists()) {
+            return true
+        }
+
+        new File(getRootPath(), "${project.name}/Dockerfile").exists()
     }
 
     def existsDbMigrationScripts() {

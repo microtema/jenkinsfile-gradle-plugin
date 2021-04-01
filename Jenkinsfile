@@ -21,6 +21,36 @@ pipeline {
 
     stages {
         
+        stage('Compile') {
+            steps {
+                sh './gradlew compileJava'
+            }
+        }
+
+        stage('Versioning') {
+        
+            environment {
+                VERSION = 'v1.0.0'
+            }
+        
+            when {
+                anyOf {
+                    branch 'release/*'
+                    branch 'bugfix/*'
+                }
+            }
+        
+            steps {
+                sh 'echo $VERSION'
+            }
+        }
+
+        stage('Build [Maven-Artifact]') {
+            steps {
+               sh './gradlew build -x check'
+            }
+        }
+
     }
 
     post {

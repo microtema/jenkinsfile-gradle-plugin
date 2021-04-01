@@ -4,12 +4,14 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.TaskAction
 
 class JenkinsfileTask extends DefaultTask {
 
     @Input
-    @Optional
     final Property<String> serviceName = project.objects.property(String)
 
     @Input
@@ -78,13 +80,14 @@ class JenkinsfileTask extends DefaultTask {
             case 'triggers': return applyTriggersStage(template)
             case 'tests': return applyTestsStage(template)
             case 'sonar': return applySonarStage(template)
+            case 'docker': return applyDockerStage(template)
             default: return template
         }
     }
 
     def buildStages() {
 
-        def stageNames = Arrays.asList("compile", "versioning", "tests", "build", "sonar")
+        def stageNames = Arrays.asList("compile", "versioning", "tests", "build", "sonar", "docker")
 
         def template = new StringBuilder()
 
@@ -165,6 +168,15 @@ class JenkinsfileTask extends DefaultTask {
     def applySonarStage(String template) {
 
         if (!service.hasSonarTask()) {
+            return null
+        }
+
+        template
+    }
+
+    def applyDockerStage(String template) {
+
+        if (!service.existsDockerfile()) {
             return null
         }
 
