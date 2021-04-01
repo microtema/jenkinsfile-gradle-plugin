@@ -83,7 +83,7 @@ class JenkinsfileTask extends DefaultTask {
 
     def buildStages() {
 
-        def stageNames = Arrays.asList("tests")
+        def stageNames = Arrays.asList("compile", "versioning", "tests", "build")
 
         def template = new StringBuilder()
 
