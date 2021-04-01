@@ -33,6 +33,7 @@ class JenkinsfilePluginTest extends Specification {
                 serviceName = '${serviceName}'
                 environments = [:]
                 upstreamProjects = ['e2e']
+                stages = ['int': 'develop', 'pprod': 'master', 'prod': 'release']
             }
         """
 

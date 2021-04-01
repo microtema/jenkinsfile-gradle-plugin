@@ -4,13 +4,12 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.OutputFile
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.*
 
 class JenkinsfileTask extends DefaultTask {
 
     @Input
+    @Optional
     final Property<String> serviceName = project.objects.property(String)
 
     @Input
@@ -28,20 +27,21 @@ class JenkinsfileTask extends DefaultTask {
     @OutputFile
     def resultFile = new File('./Jenkinsfile')
 
+    @Internal
+    final def service = new JenkinsfileGeneratorService(project)
+
     @TaskAction
     def generate() {
 
-        def service = new JenkinsfileGeneratorService()
-
         // Skip maven sub modules
-        if (!service.isGitRepo(project) && false) {
+        if (!service.isGitRepo() && false) {
 
             logger.info "Skip maven module: ${serviceName} since it is not a git repo!"
 
             return
         }
 
-        def rootPath = service.getRootPath(project)
+        def rootPath = service.getRootPath()
 
         logger.info "Generate Jenkinsfile for ${serviceName} -> ${rootPath}"
 
@@ -67,17 +67,37 @@ class JenkinsfileTask extends DefaultTask {
 
         def inputStream = getClass().getResourceAsStream("/${templateName}.Jenkinsfile")
 
+        if (!inputStream) {
+            logger.info "Unable to find template $templateName"
+        }
+
         def template = inputStream.getText()
 
         switch (templateName) {
             case 'environment': return applyEnvironmentStage(template)
             case 'triggers': return applyTriggersStage(template)
+            case 'tests': return applyTestsStage(template)
             default: return template
         }
     }
 
     def buildStages() {
-        ""
+
+        def stageNames = Arrays.asList("tests")
+
+        def template = new StringBuilder()
+
+        for (String stageName : stageNames) {
+
+            def stageTemplate = getJenkinsStage stageName
+
+            if (stageTemplate) {
+                template.append("\n")
+                template.append(paddLine(stageTemplate, 8))
+            }
+        }
+
+        template.toString()
     }
 
     def applyEnvironmentStage(String template) {
@@ -97,7 +117,7 @@ class JenkinsfileTask extends DefaultTask {
                 value = maskEnvironmentVariable(value)
             }
 
-            String line = entry.getKey() + " = " + value
+            String line = "${entry.getKey()} = ${value}"
             environmentsAsString.append(paddLine(line, 8))
         }
 
@@ -124,15 +144,32 @@ class JenkinsfileTask extends DefaultTask {
         return template.replace("@UPSTREAM_PROJECTS@", upstreamProjectsParam.toString())
     }
 
+    def applyTestsStage(String template) {
+
+        def existsUnitTests = service.existsUnitTests()
+        def existsIntegrationTests = service.existsIntegrationTests()
+
+        if (!existsUnitTests && !existsIntegrationTests) {
+            return null
+        }
+
+        def unitTest = existsUnitTests ? getJenkinsStage('unit-test') : ""
+        def integrationTest = existsIntegrationTests ? getJenkinsStage('integration-test') : ""
+
+        return template
+                .replace("@UNIT_TESTS@", unitTest.toString())
+                .replace("@INTEGRATION_TESTS@", integrationTest.toString())
+    }
+
     def maskEnvironmentVariable(String value) {
 
-        return "'" + (value != null ? value : "") + "'"
+        return "'" + (value ?: "") + "'"
     }
 
     def paddLine(String template, int padding) {
 
-        BufferedReader reader = new BufferedReader(new StringReader(template))
-        StringBuilder builder = new StringBuilder()
+        def reader = new BufferedReader(new StringReader(template))
+        def builder = new StringBuilder()
 
         List<String> spaces = new ArrayList<>()
         while (padding-- > 0) {

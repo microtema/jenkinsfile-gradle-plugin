@@ -4,46 +4,70 @@ import org.gradle.api.Project
 
 class JenkinsfileGeneratorService {
 
-    def getRootPath(Project project) {
+    final Project project
 
-        project.getBuildDir()
+    JenkinsfileGeneratorService(Project project) {
+        this.project = project
     }
 
-    def existsDockerfile(Project project) {
+    def getRootPath() {
 
-        new File(getRootPath(project), '/Dockerfile').exists()
+        project.getRootDir()
     }
 
-    def existsDbMigrationScripts(Project project) {
+    def existsDockerfile() {
 
-        new File(getRootPath(project), 'src/main/resources/db/migration').exists()
+        new File(getRootPath(), '/Dockerfile').exists()
     }
 
-    def hasSourceCode(Project project) {
+    def existsDbMigrationScripts() {
 
-        if (new File(getRootPath(project), 'src/main/test').exists()) {
+        new File(getRootPath(), 'src/main/resources/db/migration').exists()
+    }
+
+    def existsUnitTests() {
+
+        if (new File(getRootPath(), 'src/test').exists()) {
+            return true
+        }
+
+        new File(getRootPath(), "${project.name}/src/test").exists()
+    }
+
+    def existsIntegrationTests() {
+
+        if (new File(getRootPath(), 'src/main/integrationTest').exists()) {
+            return true
+        }
+
+        new File(getRootPath(), "${project.name}/src/integrationTest").exists()
+    }
+
+    def hasSourceCode() {
+
+        if (new File(getRootPath(), 'src/main/test').exists()) {
             return true
         }
 
         project.getSubprojects().find { it.getBuildDir().name.startsWith('../') }
     }
 
-    def isGitRepo(Project project) {
+    def isGitRepo() {
 
-        new File(getRootPath(project), '.git').exists()
+        new File(getRootPath(), '.git').exists()
     }
 
-    List<String> getSonarExcludes(Project project) {
+    List<String> getSonarExcludes() {
 
         List<String> excludes = new ArrayList<>(project.getSubprojects()).collect { it.getName() }
 
         excludes.removeIf { it.startsWith('../') }
-        excludes.removeIf { new File(new File(getRootPath(project), it), 'src/main/java').exists() }
+        excludes.removeIf { new File(new File(getRootPath(), it), 'src/main/java').exists() }
 
         excludes
     }
 
-    def hasSonarProperties(Project project) {
+    def hasSonarProperties() {
 
         project.task('sonaqube')
     }
