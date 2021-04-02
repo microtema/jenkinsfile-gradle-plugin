@@ -99,7 +99,7 @@ class JenkinsfileTask extends DefaultTask {
 
                 template.append("\n")
 
-                template.append(paddingLine(stageTemplate, 8))
+                template.append(JenkinsFileUtil.paddingLine(stageTemplate, 8))
 
                 template.append("\n")
             }
@@ -122,14 +122,14 @@ class JenkinsfileTask extends DefaultTask {
             String value = entry.getValue()
 
             if (!(value.startsWith("sh") || value.startsWith("'") || value.startsWith("\""))) {
-                value = maskEnvironmentVariable(value)
+                value = JenkinsFileUtil.maskEnvironmentVariable(value)
             }
 
             String line = "${entry.getKey()} = ${value}"
             environmentsAsString.append(line).append("\n")
         }
 
-        return template.replace("@ENVIRONMENTS@", paddingLine(environmentsAsString.toString(), 8))
+        return template.replace("@ENVIRONMENTS@", JenkinsFileUtil.paddingLine(environmentsAsString.toString(), 8))
     }
 
     def applyTriggersStage(String template) {
@@ -188,10 +188,10 @@ class JenkinsfileTask extends DefaultTask {
 
         int count = 0
         for (def branch : supportedBranches()) {
-            branches.append(count++ ? "\n" : "").append("branch").append(" ").append(maskEnvironmentVariable(branch))
+            branches.append(count++ ? "\n" : "").append("branch").append(" ").append(JenkinsFileUtil.maskEnvironmentVariable(branch))
         }
 
-        def line = paddingLine(branches.toString(), 12)
+        def line = JenkinsFileUtil.paddingLine(branches.toString(), 12)
 
         template.replace("@BRANCHES@", line)
     }
@@ -206,33 +206,5 @@ class JenkinsfileTask extends DefaultTask {
         }
 
         branches
-    }
-
-    def maskEnvironmentVariable(String value) {
-
-        return "'" + (value ?: "") + "'"
-    }
-
-    def paddingLine(String template, int padding) {
-
-        def stringBuilder = new StringBuilder()
-        def spaces = new ArrayList<>()
-
-        while (padding-- > 0) {
-            spaces.add(" ")
-        }
-
-        def paddingString = String.join("", spaces)
-
-        def reader = new BufferedReader(new StringReader(template))
-
-        int count = 0
-        for (String line : reader.readLines()) {
-            stringBuilder.append(count ? "\n" : "").append(paddingString).append(line)
-            count++
-        }
-        reader.close()
-
-        return stringBuilder.toString()
     }
 }
