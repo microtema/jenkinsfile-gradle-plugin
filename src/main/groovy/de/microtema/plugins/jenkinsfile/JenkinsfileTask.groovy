@@ -73,7 +73,7 @@ class JenkinsfileTask extends DefaultTask {
             logger.info "Unable to find template $templateName"
         }
 
-        def template = inputStream.getText()
+        def template = inputStream.getText().trim()
 
         switch (templateName) {
             case 'environment': return applyEnvironmentStage(template)
@@ -96,8 +96,12 @@ class JenkinsfileTask extends DefaultTask {
             def stageTemplate = getJenkinsStage stageName
 
             if (stageTemplate) {
+
                 template.append("\n")
-                template.append(paddLine(stageTemplate, 8))
+
+                template.append(paddingLine(stageTemplate, 8))
+
+                template.append("\n")
             }
         }
 
@@ -122,10 +126,10 @@ class JenkinsfileTask extends DefaultTask {
             }
 
             String line = "${entry.getKey()} = ${value}"
-            environmentsAsString.append(paddLine(line, 8))
+            environmentsAsString.append(line).append("\n")
         }
 
-        return template.replace("@ENVIRONMENTS@", environmentsAsString.toString())
+        return template.replace("@ENVIRONMENTS@", paddingLine(environmentsAsString.toString(), 8))
     }
 
     def applyTriggersStage(String template) {
@@ -180,7 +184,28 @@ class JenkinsfileTask extends DefaultTask {
             return null
         }
 
-        template
+        StringBuilder branches = new StringBuilder()
+
+        int count = 0
+        for (def branch : supportedBranches()) {
+            branches.append(count++ ? "\n" : "").append("branch").append(" ").append(maskEnvironmentVariable(branch))
+        }
+
+        def line = paddingLine(branches.toString(), 12)
+
+        template.replace("@BRANCHES@", line)
+    }
+
+    def supportedBranches() {
+
+        def branches = new ArrayList<String>()
+
+        for (def stage : stages.get()) {
+
+            branches.addAll(stage.value.split(","))
+        }
+
+        branches
     }
 
     def maskEnvironmentVariable(String value) {
@@ -188,34 +213,26 @@ class JenkinsfileTask extends DefaultTask {
         return "'" + (value ?: "") + "'"
     }
 
-    def paddLine(String template, int padding) {
+    def paddingLine(String template, int padding) {
 
-        def reader = new BufferedReader(new StringReader(template))
-        def builder = new StringBuilder()
+        def stringBuilder = new StringBuilder()
+        def spaces = new ArrayList<>()
 
-        List<String> spaces = new ArrayList<>()
         while (padding-- > 0) {
             spaces.add(" ")
         }
 
-        String paddingString = String.join("", spaces)
+        def paddingString = String.join("", spaces)
 
-        try {
-            String line
-            while ((line = reader.readLine()) != null) {
-                builder.append(paddingString).append(line).append("\n")
-            }
+        def reader = new BufferedReader(new StringReader(template))
 
-        } catch (IOException e) {
-            throw new IllegalStateException(e)
-        } finally {
-            try {
-                reader.close()
-            } catch (IOException e) {
-                // ignore this exception
-            }
+        int count = 0
+        for (String line : reader.readLines()) {
+            stringBuilder.append(count ? "\n" : "").append(paddingString).append(line)
+            count++
         }
+        reader.close()
 
-        return builder.toString()
+        return stringBuilder.toString()
     }
 }

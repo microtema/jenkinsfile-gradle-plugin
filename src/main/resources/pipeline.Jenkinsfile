@@ -1,9 +1,13 @@
 pipeline {
 
     @AGENT@
+
     @ENVIRONMENT@
+
     @OPTIONS@
+
     @TRIGGERS@
+
     stages {
         @STAGES@
     }
